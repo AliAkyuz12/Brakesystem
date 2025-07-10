@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ultimate Brake Simulation System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: linear-gradient(120deg, #f8fafc 0%, #e0e7ff 100%);
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #222;
+      margin: 0;
+      padding: 0 0 40px 0;
+    }
+    h2 {
+      color: #3b82f6;
+      text-align: center;
+      margin-top: 30px;
+      text-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    }
+    label {
+      display: block;
+      margin: 10px 0 0 0;
+      font-weight: 500;
+      color: #374151;
+    }
+    input[type="number"], input[type="range"], select {
+      margin-left: 10px;
+      border-radius: 5px;
+      border: 1px solid #a5b4fc;
+      padding: 2px 6px;
+      background: #f1f5f9;
+      color: #222;
+    }
+    input[type="checkbox"] {
+      margin-left: 10px;
+      accent-color: #3b82f6;
+    }
+    select {
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+    #system {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 30px 0 10px 0;
+      flex-wrap: wrap;
+    }
+    #pedal {
+      width: 30px; height: 100px; background: #6366f1;
+      margin: 20px; border-radius: 10px; position: relative; left: 0; transition: left 0.2s;
+      box-shadow: 0 4px 16px #6366f155;
+    }
+    #diagram {
+      width: 400px; height: 100px; background: #e0e7ff;
+      margin-left: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: space-around;
+      box-shadow: 0 2px 12px #6366f133;
+    }
+    .part {
+      width: 60px; height: 60px; border-radius: 50%;
+      background: #a5b4fc; text-align: center; line-height: 60px;
+      font-weight: bold; font-size: 14px; border: 2px solid #6366f1;
+      color: #222; box-shadow: 0 2px 8px #6366f122;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .active {
+      background: #fbbf24 !important;
+      border-color: #f59e42 !important;
+      color: #fff !important;
+    }
+    .warning { color: #ef4444; font-weight: bold; }
+    #inputs, #results {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px #6366f122;
+      padding: 24px 32px;
+      margin-bottom: 24px;
+    }
+    #results strong { color: #3b82f6; }
+    .charts {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 30px;
+      margin-top: 30px;
+    }
+    .chart-container {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px #6366f122;
+      padding: 16px 20px 8px 20px;
+      margin-bottom: 20px;
+      width: 340px;
+    }
+    .abs-on {
+      color: #fff;
+      background: #22c55e;
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-left: 10px;
+      display: inline-block;
+      box-shadow: 0 2px 8px #22c55e33;
+    }
+    .abs-off {
+      color: #fff;
+      background: #ef4444;
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-left: 10px;
+      display: inline-block;
+      box-shadow: 0 2px 8px #ef444433;
+    }
+    .abs-inactive {
+      color: #fff;
+      background: #64748b;
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-left: 10px;
+      display: inline-block;
+      box-shadow: 0 2px 8px #64748b33;
+    }
+
+    /* Yeni Özellikler */
+    #vehicleAnimation {
+      width: 100%;
+      height: 200px;
+      background: linear-gradient(to bottom, #87ceeb 0%, #87ceeb 60%, #228b22 60%, #228b22 100%);
+      position: relative;
+      margin: 20px 0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    #car {
+      width: 80px;
+      height: 40px;
+      background: #ff4444;
+      position: absolute;
+      bottom: 60px;
+      left: 50px;
+      border-radius: 10px;
+      transition: left 0.1s linear;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+
+    #car::before {
+      content: '';
+      position: absolute;
+      width: 15px;
+      height: 15px;
+      background: #333;
+      border-radius: 50%;
+      bottom: -7px;
+      left: 10px;
+      box-shadow: 50px 0 0 #333;
+    }
+
+    #road {
+      position: absolute;
+      bottom: 50px;
+      width: 100%;
+      height: 20px;
+      background: repeating-linear-gradient(
+        90deg,
+        #333 0px,
+        #333 20px,
+        #fff 20px,
+        #fff 40px
+      );
+      animation: roadMove 2s linear infinite;
+    }
+
+    @keyframes roadMove {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-40px); }
+    }
+
+    .road-stopped {
+      animation-play-state: paused !important;
+    }
+
+    #comparisonTable {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px #6366f122;
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 800px;
+    }
+
+    #comparisonTable table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    #comparisonTable th, #comparisonTable td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    #comparisonTable th {
+      background: #f3f4f6;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    #quiz {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px #6366f122;
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 600px;
+      text-align: center;
+    }
+
+    #quiz button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 5px;
+      font-weight: 500;
+    }
+
+    #quiz button:hover {
+      background: #2563eb;
+    }
+
+    .correct {
+      background: #22c55e !important;
+    }
+
+    .incorrect {
+      background: #ef4444 !important;
+    }
+
+    #score {
+      font-size: 18px;
+      font-weight: bold;
+      color: #3b82f6;
+      margin-top: 10px;
+    }
+
+    .temperature-gauge {
+      width: 100px;
+      height: 20px;
+      background: linear-gradient(to right, #22c55e, #fbbf24, #ef4444);
+      border-radius: 10px;
+      position: relative;
+      margin: 10px 0;
+    }
+
+    .temp-indicator {
+      width: 4px;
+      height: 24px;
+      background: #000;
+      position: absolute;
+      top: -2px;
+      border-radius: 2px;
+      transition: left 0.3s;
+    }
+
+    @media (max-width: 1100px) {
+      .charts { flex-direction: column; align-items: center; }
+      .chart-container { width: 95vw; }
+      #system { flex-direction: column; }
+      #diagram { margin-left: 0; margin-top: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <h2>🚗 Ultimate Brake Simulation System 🛑</h2>
+
+  <div id="inputs">
+    <h3>🚙 Vehicle Type & Road Conditions</h3>
+    <label>Vehicle Type: 
+      <select id="vehicleType" onchange="updateVehicleType()">
+        <option value="car">🚗 Car</option>
+        <option value="truck">🚛 Truck</option>
+        <option value="motorcycle">🏍️ Motorcycle</option>
+      </select>
+    </label>
+    <label>Road Condition: 
+      <select id="roadCondition" onchange="updateRoadCondition()">
+        <option value="dry">☀️ Dry</option>
+        <option value="wet">🌧️ Wet</option>
+        <option value="icy">🧊 Icy</option>
+        <option value="muddy">🟤 Muddy</option>
+      </select>
+    </label>
+
+    <h3>⚙️ Brake System Parameters</h3>
+    <label>Pedal Force (N): <input type="range" id="pedalForce" min="0" max="200" value="50" oninput="updateAll()">
+      <span id="pedalValue">50</span></label>
+    <label>Pedal Mechanical Ratio: <input type="number" id="pedalRatio" value="4" min="1" max="10" oninput="updateAll()"></label>
+    <label>Brake Booster Ratio: <input type="number" id="servoRatio" value="5" min="1" max="10" oninput="updateAll()"></label>
+    <label>System Efficiency (%): <input type="number" id="efficiency" value="90" min="70" max="100" oninput="updateAll()"></label>
+    <label>Master Cylinder Diameter (mm): <input type="number" id="masterDiameter" value="22" min="10" max="40" oninput="updateAll()"></label>
+    <label>Caliper Piston Diameter (mm): <input type="number" id="caliperDiameter" value="40" min="20" max="60" oninput="updateAll()"></label>
+    <label>Brake Disc Diameter (mm): <input type="number" id="diskDiameter" value="280" min="200" max="400" oninput="updateAll()"></label>
+    <label>Pad Friction Coefficient (μ): <input type="number" id="friction" value="0.4" step="0.01" min="0.1" max="0.8" oninput="updateAll()"></label>
+    <label>Tire/Road Friction Coefficient: <input type="number" id="tireFriction" value="0.8" step="0.01" min="0.1" max="1.2" oninput="updateAll()"></label>
+    <label>Road Slope (°): <input type="number" id="slope" value="0" min="-20" max="20" oninput="updateAll()"></label>
+    <label>Vehicle Mass (kg): <input type="number" id="mass" value="1200" min="500" max="3000" oninput="updateAll()"></label>
+    <label>Initial Speed (km/h): <input type="number" id="speed" value="50" min="0" max="200" oninput="updateAll()"></label>
+    <label>ABS: <input type="checkbox" id="abs" checked oninput="updateAll()"></label>
+  </div>
+
+  <div id="vehicleAnimation">
+    <div id="road"></div>
+    <div id="car"></div>
+  </div>
+
+  <div id="system">
+    <div id="pedal"></div>
+    <div id="diagram">
+      <div class="part" id="hidrovak">Booster</div>
+      <div class="part" id="silindir">Master</div>
+      <div class="part" id="kaliper">Caliper</div>
+    </div>
+  </div>
+
+  <div id="results">
+    <h3>🌡️ Temperature Status</h3>
+    <strong>Brake Temperature:</strong> <span id="brakeTemp">25</span>°C
+    <div class="temperature-gauge">
+      <div class="temp-indicator" id="tempIndicator"></div>
+    </div>
+
+    <h3>📊 Calculation Results</h3>
+    <strong>Pedal Output Force:</strong> <span id="pedalOut"></span> N<br>
+    <strong>Booster Output Force:</strong> <span id="servoOut"></span> N<br>
+    <strong>Post-Efficiency Force:</strong> <span id="effOut"></span> N<br>
+    <strong>Master Cylinder Area:</strong> <span id="masterArea"></span> mm²<br>
+    <strong>Hydraulic Pressure:</strong> <span id="pressure"></span> bar<br>
+    <strong>Caliper Area:</strong> <span id="caliperArea"></span> mm²<br>
+    <strong>Theoretical Pad Force:</strong> <span id="theoreticalForce"></span> N<br>
+    <strong>Actual Pad Force:</strong> <span id="brakeForce"></span> N<br>
+    <strong>Brake Torque:</strong> <span id="brakeTorque"></span> Nm<br>
+    <strong>Tire/Road Limit:</strong> <span id="tireLimit"></span> N<br>
+    <strong>ABS Status:</strong> <span id="absStatus"></span><br>
+    <strong>Deceleration (a):</strong> <span id="decel"></span> m/s²<br>
+    <strong>Stopping Distance:</strong> <span id="stopDist"></span> m
+  </div>
+
+  <div id="comparisonTable">
+    <h3>📈 Comparison History</h3>
+    <button onclick="addToComparison()" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-bottom: 10px;">Add Current Result</button>
+    <button onclick="clearComparison()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-bottom: 10px; margin-left: 10px;">Clear All</button>
+    <table id="comparisonTableData">
+      <thead>
+        <tr>
+          <th>Vehicle</th>
+          <th>Road</th>
+          <th>Speed (km/h)</th>
+          <th>ABS</th>
+          <th>Stop Distance (m)</th>
+          <th>Deceleration (m/s²)</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="quiz">
+    <h3>🧠 Knowledge Quiz</h3>
+    <div id="quizQuestion"></div>
+    <div id="quizOptions"></div>
+    <div id="quizResult"></div>
+    <div id="score">Score: <span id="scoreValue">0</span>/10</div>
+    <button onclick="generateQuiz()" style="margin-top: 10px;">New Question</button>
+  </div>
+
+  <div class="charts">
+    <div class="chart-container">
+      <canvas id="chartSpeed" width="300" height="180"></canvas>
+    </div>
+    <div class="chart-container">
+      <canvas id="chartDecel" width="300" height="180"></canvas>
+    </div>
+    <div class="chart-container">
+      <canvas id="chartForce" width="300" height="180"></canvas>
+    </div>
+    <div class="chart-container">
+      <canvas id="chartTemp" width="300" height="180"></canvas>
+    </div>
+  </div>
+
+  <script>
+    let chartSpeed, chartDecel, chartForce, chartTemp;
+    let comparisonData = [];
+    let quizScore = 0;
+    let quizTotal = 0;
+    let currentTemp = 25;
+    let animationRunning = false;
+
+    // Ses efektleri için basit beep fonksiyonu
+    function playSound(frequency, duration) {
+      if (typeof(AudioContext) !== "undefined" || typeof(webkitAudioContext) !== "undefined") {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.value = frequency;
+        oscillator.type = 'sine';
+
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration);
+      }
+    }
+
+    function updateVehicleType() {
+      const vehicleType = document.getElementById('vehicleType').value;
+
+      switch(vehicleType) {
+        case 'car':
+          document.getElementById('mass').value = 1200;
+          document.getElementById('diskDiameter').value = 280;
+          document.getElementById('caliperDiameter').value = 40;
+          break;
+        case 'truck':
+          document.getElementById('mass').value = 8000;
+          document.getElementById('diskDiameter').value = 350;
+          document.getElementById('caliperDiameter').value = 60;
+          break;
+        case 'motorcycle':
+          document.getElementById('mass').value = 200;
+          document.getElementById('diskDiameter').value = 300;
+          document.getElementById('caliperDiameter').value = 30;
+          break;
+      }
+      updateAll();
+    }
+
+    function updateRoadCondition() {
+      const roadCondition = document.getElementById('roadCondition').value;
+
+      switch(roadCondition) {
+        case 'dry':
+          document.getElementById('tireFriction').value = 0.8;
+          break;
+        case 'wet':
+          document.getElementById('tireFriction').value = 0.5;
+          break;
+        case 'icy':
+          document.getElementById('tireFriction').value = 0.2;
+          break;
+        case 'muddy':
+          document.getElementById('tireFriction').value = 0.3;
+          break;
+      }
+      updateAll();
+    }
+
+    function updateAll() {
+      // Inputs
+      let pedalForce = parseFloat(document.getElementById('pedalForce').value);
+      let pedalRatio = parseFloat(document.getElementById('pedalRatio').value);
+      let servoRatio = parseFloat(document.getElementById('servoRatio').value);
+      let efficiency = parseFloat(document.getElementById('efficiency').value) / 100;
+      let masterDiameter = parseFloat(document.getElementById('masterDiameter').value);
+      let caliperDiameter = parseFloat(document.getElementById('caliperDiameter').value);
+      let diskDiameter = parseFloat(document.getElementById('diskDiameter').value);
+      let friction = parseFloat(document.getElementById('friction').value);
+      let tireFriction = parseFloat(document.getElementById('tireFriction').value);
+      let slope = parseFloat(document.getElementById('slope').value);
+      let mass = parseFloat(document.getElementById('mass').value);
+      let speed = parseFloat(document.getElementById('speed').value) / 3.6; // m/s
+      let abs = document.getElementById('abs').checked;
+
+      document.getElementById('pedalValue').innerText = pedalForce;
+
+      // 1. Pedal mechanical ratio
+      let pedalOut = pedalForce * pedalRatio;
+      document.getElementById('pedalOut').innerText = pedalOut.toFixed(2);
+
+      // 2. Booster ratio
+      let servoOut = pedalOut * servoRatio;
+      document.getElementById('servoOut').innerText = servoOut.toFixed(2);
+
+      // 3. System efficiency
+      let effOut = servoOut * efficiency;
+      document.getElementById('effOut').innerText = effOut.toFixed(2);
+
+      // 4. Master cylinder area
+      let masterArea = Math.PI * Math.pow(masterDiameter / 2, 2); // mm²
+      let masterArea_m2 = masterArea / 1e6; // m²
+      document.getElementById('masterArea').innerText = masterArea.toFixed(2);
+
+      // 5. Hydraulic pressure
+      let pressure = effOut / masterArea_m2; // Pa
+      let pressure_bar = pressure / 1e5; // bar
+      document.getElementById('pressure').innerText = pressure_bar.toFixed(2);
+
+      // 6. Caliper area
+      let caliperArea = Math.PI * Math.pow(caliperDiameter / 2, 2); // mm²
+      let caliperArea_m2 = caliperArea / 1e6; // m²
+      document.getElementById('caliperArea').innerText = caliperArea.toFixed(2);
+
+      // 7. Theoretical pad force (from hydraulics)
+      let theoreticalForce = pressure * caliperArea_m2; // N
+      document.getElementById('theoreticalForce').innerText = theoreticalForce.toFixed(2);
+
+      // 8. Tire/road limit
+      let g = 9.81;
+      let slopeRad = slope * Math.PI / 180;
+      let normalForce = mass * g * Math.cos(slopeRad);
+      let tireLimit = normalForce * tireFriction;
+      document.getElementById('tireLimit').innerText = tireLimit.toFixed(2);
+
+      // 9. Temperature calculation
+      let brakeEnergy = 0.5 * mass * speed * speed; // Kinetic energy
+      let tempIncrease = (brakeEnergy / 1000) * 0.1; // Simplified temperature model
+      currentTemp = 25 + tempIncrease + (pedalForce * 0.2);
+      document.getElementById('brakeTemp').innerText = Math.round(currentTemp);
+
+      // Temperature indicator position (0-100%)
+      let tempPercent = Math.min((currentTemp - 25) / 200, 1) * 100;
+      document.getElementById('tempIndicator').style.left = tempPercent + '%';
+
+      // 10. Actual pad force and ABS
+      let brakeForce = theoreticalForce;
+      let absStatus = "";
+      let absClass = "";
+      let absActive = false;
+
+      // Temperature fade effect
+      if (currentTemp > 150) {
+        brakeForce *= (200 - currentTemp) / 50; // Fade effect
+        if (brakeForce < 0) brakeForce = 0;
+      }
+
+      if (theoreticalForce > tireLimit) {
+        if (abs) {
+          brakeForce = Math.min(brakeForce, tireLimit);
+          absStatus = "ABS ACTIVE";
+          absClass = "abs-on";
+          absActive = true;
+          playSound(800, 0.1); // ABS sound
+        } else {
+          absStatus = "ABS OFF (Wheels lock!)";
+          absClass = "abs-off";
+          brakeForce = Math.min(brakeForce, tireLimit * 0.7); // Sliding friction
+          playSound(200, 0.3); // Lock sound
+        }
+      } else {
+        absStatus = "ABS INACTIVE";
+        absClass = "abs-inactive";
+      }
+      document.getElementById('absStatus').innerHTML = `<span class="${absClass}">${absStatus}</span>`;
+      document.getElementById('brakeForce').innerText = brakeForce.toFixed(2);
+
+      // 11. Brake torque
+      let brakeTorque = brakeForce * (diskDiameter / 2000); // Nm
+      document.getElementById('brakeTorque').innerText = brakeTorque.toFixed(2);
+
+      // 12. Deceleration and stopping distance
+      let a = (brakeForce / mass) + g * Math.sin(slopeRad);
+      if (a < 0.1) a = 0.1;
+      let stopDist = speed * speed / (2 * a);
+      document.getElementById('decel').innerText = a.toFixed(2);
+      document.getElementById('stopDist').innerText = stopDist.toFixed(1);
+
+      // Pedal animation
+      document.getElementById('pedal').style.left = (pedalForce) + "px";
+
+      // Part animation
+      document.getElementById('hidrovak').className = "part active";
+      setTimeout(() => { document.getElementById('hidrovak').className = "part"; document.getElementById('silindir').className = "part active"; }, 200);
+      setTimeout(() => { document.getElementById('silindir').className = "part"; document.getElementById('kaliper').className = "part active"; }, 400);
+      setTimeout(() => { document.getElementById('kaliper').className = "part"; }, 600);
+
+      // Vehicle animation
+      animateVehicle(speed, a, stopDist);
+
+      // Time series for charts
+      let t = 0, dt = 0.1, v = speed, dataSpeed = [], dataDecel = [], dataForce = [], dataTemp = [], labels = [];
+      let tempCurrent = currentTemp;
+
+      while (v > 0 && t < 20) {
+        dataSpeed.push(v * 3.6); // km/h
+        dataDecel.push(a);
+        dataForce.push(brakeForce);
+        dataTemp.push(tempCurrent);
+        labels.push(t.toFixed(1));
+        v -= a * dt;
+        if (v < 0) v = 0;
+        tempCurrent += (brakeForce * 0.001); // Temperature increases with braking
+        t += dt;
+      }
+
+      // Chart.js color helpers
+      const speedColor = absActive ? '#22c55e' : '#3b82f6';
+      const decelColor = absActive ? '#f59e42' : '#ef4444';
+      const forceColor = absActive ? '#0ea5e9' : '#a21caf';
+      const tempColor = '#ff6b35';
+
+      // Speed chart
+      if (!chartSpeed) {
+        chartSpeed = new Chart(document.getElementById('chartSpeed').getContext('2d'), {
+          type: 'line',
+          data: { labels: labels, datasets: [{ label: 'Speed (km/h)', data: dataSpeed, borderColor: speedColor, backgroundColor: speedColor+'33', fill: true, tension: 0.3 }] },
+          options: { plugins: { legend: { display: true } }, scales: { x: { title: { display: true, text: 'Time (s)' } }, y: { title: { display: true, text: 'Speed (km/h)' } } } }
+        });
+      } else {
+        chartSpeed.data.labels = labels;
+        chartSpeed.data.datasets[0].data = dataSpeed;
+        chartSpeed.data.datasets[0].borderColor = speedColor;
+        chartSpeed.data.datasets[0].backgroundColor = speedColor+'33';
+        chartSpeed.update();
+      }
+
+      // Deceleration chart
+      if (!chartDecel) {
+        chartDecel = new Chart(document.getElementById('chartDecel').getContext('2d'), {
+          type: 'line',
+          data: { labels: labels, datasets: [{ label: 'Deceleration (m/s²)', data: dataDecel, borderColor: decelColor, backgroundColor: decelColor+'33', fill: true, tension: 0.3 }] },
+          options: { plugins: { legend: { display: true } }, scales: { x: { title: { display: true, text: 'Time (s)' } }, y: { title: { display: true, text: 'Deceleration (m/s²)' } } } }
+        });
+      } else {
+        chartDecel.data.labels = labels;
+        chartDecel.data.datasets[0].data = dataDecel;
+        chartDecel.data.datasets[0].borderColor = decelColor;
+        chartDecel.data.datasets[0].backgroundColor = decelColor+'33';
+        chartDecel.update();
+      }
+
+      // Brake force chart
+      if (!chartForce) {
+        chartForce = new Chart(document.getElementById('chartForce').getContext('2d'), {
+          type: 'line',
+          data: { labels: labels, datasets: [{ label: 'Brake Force (N)', data: dataForce, borderColor: forceColor, backgroundColor: forceColor+'33', fill: true, tension: 0.3 }] },
+          options: { plugins: { legend: { display: true } }, scales: { x: { title: { display: true, text: 'Time (s)' } }, y: { title: { display: true, text: 'Brake Force (N)' } } } }
+        });
+      } else {
+        chartForce.data.labels = labels;
+        chartForce.data.datasets[0].data = dataForce;
+        chartForce.data.datasets[0].borderColor = forceColor;
+        chartForce.data.datasets[0].backgroundColor = forceColor+'33';
+        chartForce.update();
+      }
+
+      // Temperature chart
+      if (!chartTemp) {
+        chartTemp = new Chart(document.getElementById('chartTemp').getContext('2d'), {
+          type: 'line',
+          data: { labels: labels, datasets: [{ label: 'Temperature (°C)', data: dataTemp, borderColor: tempColor, backgroundColor: tempColor+'33', fill: true, tension: 0.3 }] },
+          options: { plugins: { legend: { display: true } }, scales: { x: { title: { display: true, text: 'Time (s)' } }, y: { title: { display: true, text: 'Temperature (°C)' } } } }
+        });
+      } else {
+        chartTemp.data.labels = labels;
+        chartTemp.data.datasets[0].data = dataTemp;
+        chartTemp.update();
+      }
+    }
+
+    function animateVehicle(initialSpeed, deceleration, stopDistance) {
+      if (animationRunning) return;
+      animationRunning = true;
+
+      const car = document.getElementById('car');
+      const road = document.getElementById('road');
+      const startPosition = 50;
+      const endPosition = Math.min(startPosition + stopDistance * 2, 500);
+
+      let currentPosition = startPosition;
+      let currentSpeed = initialSpeed;
+
+      road.classList.remove('road-stopped');
+
+      const animate = () => {
+        if (currentSpeed > 0) {
+          currentPosition += currentSpeed * 0.5;
+          currentSpeed -= deceleration * 0.1;
+          if (currentSpeed < 0) currentSpeed = 0;
+
+          car.style.left = Math.min(currentPosition, endPosition) + 'px';
+          requestAnimationFrame(animate);
+        } else {
+          road.classList.add('road-stopped');
+          animationRunning = false;
+        }
+      };
+
+      animate();
+    }
+
+    function addToComparison() {
+      const vehicleType = document.getElementById('vehicleType').value;
+      const roadCondition = document.getElementById('roadCondition').value;
+      const speed = document.getElementById('speed').value;
+      const abs = document.getElementById('abs').checked ? 'ON' : 'OFF';
+      const stopDist = document.getElementById('stopDist').innerText;
+      const decel = document.getElementById('decel').innerText;
+
+      comparisonData.push({
+        vehicle: vehicleType,
+        road: roadCondition,
+        speed: speed,
+        abs: abs,
+        stopDist: stopDist,
+        decel: decel
+      });
+
+      updateComparisonTable();
+    }
+
+    function clearComparison() {
+      comparisonData = [];
+      updateComparisonTable();
+    }
+
+    function updateComparisonTable() {
+      const tbody = document.querySelector('#comparisonTableData tbody');
+      tbody.innerHTML = '';
+
+      comparisonData.forEach((data, index) => {
+        const row = tbody.insertRow();
+        row.insertCell(0).textContent = data.vehicle;
+        row.insertCell(1).textContent = data.road;
+        row.insertCell(2).textContent = data.speed;
+        row.insertCell(3).textContent = data.abs;
+        row.insertCell(4).textContent = data.stopDist;
+        row.insertCell(5).textContent = data.decel;
+      });
+    }
+
+    function generateQuiz() {
+      const questions = [
+        {
+          question: "What happens when ABS is activated?",
+          options: ["Wheels lock completely", "Wheels are prevented from locking", "Brakes stop working", "Speed increases"],
+          correct: 1
+        },
+        {
+          question: "Which road condition provides the best braking performance?",
+          options: ["Wet", "Icy", "Dry", "Muddy"],
+          correct: 2
+        },
+        {
+          question: "What is brake fade?",
+          options: ["Brakes getting stronger", "Brakes losing effectiveness due to heat", "ABS activation", "Pedal getting harder"],
+          correct: 1
+        },
+        {
+          question: "Higher tire friction coefficient means:",
+          options: ["Longer stopping distance", "Shorter stopping distance", "No change in stopping", "ABS won't work"],
+          correct: 1
+        },
+        {
+          question: "What does the brake booster do?",
+          options: ["Reduces pedal force needed", "Increases brake temperature", "Activates ABS", "Changes tire friction"],
+          correct: 0
+        }
+      ];
+
+      const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+
+      document.getElementById('quizQuestion').innerHTML = `<h4>${randomQuestion.question}</h4>`;
+
+      const optionsHtml = randomQuestion.options.map((option, index) => 
+        `<button onclick="checkAnswer(${index}, ${randomQuestion.correct})">${option}</button>`
+      ).join('');
+
+      document.getElementById('quizOptions').innerHTML = optionsHtml;
+      document.getElementById('quizResult').innerHTML = '';
+    }
+
+    function checkAnswer(selected, correct) {
+      quizTotal++;
+      const buttons = document.querySelectorAll('#quizOptions button');
+
+      if (selected === correct) {
+        quizScore++;
+        buttons[selected].classList.add('correct');
+        document.getElementById('quizResult').innerHTML = '<p style="color: #22c55e; font-weight: bold;">✅ Correct!</p>';
+        playSound(600, 0.2);
+      } else {
+        buttons[selected].classList.add('incorrect');
+        buttons[correct].classList.add('correct');
+        document.getElementById('quizResult').innerHTML = '<p style="color: #ef4444; font-weight: bold;">❌ Incorrect!</p>';
+        playSound(300, 0.5);
+      }
+
+      document.getElementById('scoreValue').textContent = quizScore;
+
+      // Disable all buttons
+      buttons.forEach(button => button.disabled = true);
+
+      setTimeout(() => {
+        generateQuiz();
+      }, 2000);
+    }
+
+    // Initialize
+    updateAll();
+    generateQuiz();
+  </script>
+</body>
+</html>
